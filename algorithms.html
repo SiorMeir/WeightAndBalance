@@ -41,6 +41,15 @@
       .math { margin: 1.5rem 0 4.5rem; background: #10233d; border-radius: 1rem; padding: 2.25rem; color: #e4f4fc; overflow: auto; }
       .math h2 { color: white; }
       pre { color: #b9e6fa; font: .95rem/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; margin: 1.3rem 0 0; }
+      .technical { margin: 4.5rem 0; }
+      .technical-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .technical .card { min-height: 100%; }
+      .technical ul { color: #4d6079; margin: .55rem 0 0; padding-left: 1.1rem; }
+      .technical li + li { margin-top: .3rem; }
+      .code-card { margin-top: 1rem; padding: 1.7rem; border-radius: .9rem; background: #10233d; overflow: auto; }
+      .code-card h3 { color: white; margin: 0; }
+      .code-card pre { margin-bottom: 0; }
+      .source { margin-top: 1rem; color: #62758d; font-size: .9rem; }
       .promise { display: grid; grid-template-columns: 1.2fr .8fr; align-items: center; gap: 2rem; padding: 3rem; color: #f8fbff; background: #16734a; border-radius: 1rem; }
       .promise h2 { margin-bottom: .65rem; }
       .promise p { margin: 0; color: #d9f5e5; }
@@ -60,7 +69,7 @@
           <div class="eyebrow">Robust decision making</div>
           <h1>Less calculation.<br>Nothing left to chance.</h1>
           <p>Use convex geometry to rule out entire families of loading configurations—while reducing a fuel limit only when a real aircraft configuration proves it is necessary.</p>
-          <a class="cta" href="ALGORITHMS.md">Read the technical guide</a>
+          <a class="cta" href="#technical-guide">Read the technical guide</a>
         </div>
       </div>
     </section>
@@ -105,9 +114,58 @@ CG      = M_total / W_total
 configuration hull = P₁ ⊕ P₂ ⊕ ... ⊕ Pₙ
 swept hull         = configuration hull ⊕ fuel segment</pre>
       </section>
+      <section class="technical" id="technical-guide">
+        <div class="eyebrow" style="color:#0f638a">Technical guide</div>
+        <h2>The complete method, in plain language.</h2>
+        <p class="section-intro">This is the web-rendered version of the project’s algorithm guide. It keeps the safety-critical distinction clear: hulls prove groups safe; only real configurations can reduce the usable-fuel result.</p>
+        <div class="technical-grid">
+          <article class="card"><h3>Input contract</h3><ul><li>Use a convex polygon of CG-station and gross-weight vertices; boundary contact is safe.</li><li>Represent basic-aircraft uncertainty and payload tolerances as finite, real endpoint cases.</li><li>Store every load in consistent weight–moment coordinates and require positive total weight.</li><li>Interpolate each supplied fuel flow linearly in weight–moment coordinates.</li><li>Check the entire centrogram, including the interior of every fuel segment.</li></ul></article>
+          <article class="card"><h3>Base calculation</h3><ul><li>Sum basic aircraft, selected item, and fuel weights and moments.</li><li>Recover CG as total moment divided by total weight.</li><li>Find envelope crossings analytically on every fuel segment.</li><li>Return the maximum safe <em>prefix</em> of the fuel trajectory.</li><li>Report an invalid starting state as infeasible, not as a safe zero-fuel cap.</li></ul></article>
+          <article class="card"><h3>Hull certificate</h3><ul><li>Take the convex hull of each item’s permitted contributions.</li><li>Combine hulls with Minkowski sums, then add a tail’s basic-aircraft hull.</li><li>Sweep the result through a clipped fuel segment.</li><li>Maximize each transformed envelope constraint over every swept-hull edge.</li><li>Prune only when every constraint is certified safe.</li></ul></article>
+          <article class="card"><h3>Complexity</h3><ul><li>Exhaustive work is <code>O(T × F × E × kⁿ)</code>.</li><li>One hull pass is <code>O(T × F × E × H)</code>.</li><li>For constant-size choices, 2D hull complexity is linear-scale: <code>H = O(n)</code>.</li><li>Exact branch-and-bound can still be exponential in the worst case.</li><li>Its payoff is practical pruning with no unsafe shortcut.</li></ul></article>
+        </div>
+        <article class="code-card">
+          <h3>Branch-and-bound pseudocode</h3>
+          <pre>U = minimum real maximum-safe-prefix from seed configurations
+queue = [all permitted item and basic-aircraft choices]
+
+while queue is not empty:
+    group = queue.pop()
+    if every clipped fuel segment of group’s swept hull is certified safe up to U:
+        continue                         # the group cannot lower U
+    if group is one real configuration:
+        U = min(U, realMaximumSafePrefix(group))
+    else:
+        optionally evaluate a real witness
+        split the unresolved group and add its children to queue
+
+return U</pre>
+        </article>
+        <article class="code-card">
+          <h3>Lean 4 building block</h3>
+          <pre>import Mathlib
+
+structure Load where
+  weight : ℝ
+  moment : ℝ
+
+def contribution (weight station : ℝ) : Load :=
+  ⟨weight, weight * station⟩
+
+def cg (load : Load) : ℝ := load.moment / load.weight
+
+theorem contribution_cg
+    (weight station : ℝ) (hweight : weight ≠ 0) :
+    cg (contribution weight station) = station := by
+  dsimp [cg, contribution]
+  apply (div_eq_iff hweight).2
+  ring</pre>
+        </article>
+        <p class="source">The canonical source is retained unchanged as <a href="ALGORITHMS.md">ALGORITHMS.md (raw Markdown source)</a>. For normal reading, use this rendered page.</p>
+      </section>
       <section class="promise">
         <div><h2>Conservative where it helps. Exact where it matters.</h2><p>Hull geometry may deliberately over-approximate what is possible to prove a group safe. But only a real modeled configuration may lower the final fuel cap.</p></div>
-        <a href="ALGORITHMS.md">Dive into pseudocode, Big O &amp; Lean →</a>
+        <a href="#technical-guide">Dive into pseudocode, Big O &amp; Lean →</a>
       </section>
     </main>
     <footer class="wrap">Educational demonstration only. Illustrative inputs are not approved loading, dispatch, or flight-operation data.</footer>
