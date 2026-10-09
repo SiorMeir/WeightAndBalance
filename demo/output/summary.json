@@ -1,0 +1,42 @@
+{
+  "total_configurations": 256,
+  "noncritical_pruned_configurations": 240,
+  "limiting_configurations": 16,
+  "full_fuel_lb": 93055.0,
+  "mandatory_center_payload_lb": 8000,
+  "mandatory_center_payload_station_in": 850.0,
+  "robust_fuel_cap_lb": 85015.00000001141,
+  "lost_fuel_lb": 8039.999999988591,
+  "certificate_cap_lb": 85015.00000001141,
+  "certificate_groups": {
+    "P1 light (hull-pruned)": {
+      "configurations": 128,
+      "certified": true,
+      "worst_quadratic_violation": -407646239.8876953,
+      "fuel_segments_checked": 3
+    },
+    "P2 light (hull-pruned)": {
+      "configurations": 64,
+      "certified": true,
+      "worst_quadratic_violation": -407646239.8876953,
+      "fuel_segments_checked": 3
+    },
+    "P3 light (hull-pruned)": {
+      "configurations": 32,
+      "certified": true,
+      "worst_quadratic_violation": -407646239.8876953,
+      "fuel_segments_checked": 3
+    },
+    "P4 light (hull-pruned)": {
+      "configurations": 16,
+      "certified": true,
+      "worst_quadratic_violation": -407646239.8876953,
+      "fuel_segments_checked": 3
+    }
+  },
+  "sources": {
+    "faa_tcds_4a21": "https://www.scribd.com/document/206769306/Tcds-Boeing-707",
+    "nasa_707_320b_context": "https://ntrs.nasa.gov/api/citations/19760008970/downloads/19760008970.pdf"
+  },
+  "safety_notice": "Educational illustration only; not approved aircraft loading or dispatch data."
+}
