@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weight and Balance Demo</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172033; background: #f8fafc; }
+      body { margin: 0; }
+      main { max-width: 1440px; margin: 0 auto; padding: 2.5rem 1.25rem; }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); }
+      .lede { max-width: 70ch; color: #45546b; line-height: 1.55; }
+      .links { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+      .links a { border: 1px solid #b7c7d9; border-radius: .5rem; background: white; color: #0f5c8c; padding: .65rem .9rem; text-decoration: none; font-weight: 650; }
+      .links a:hover { background: #edf6fb; }
+      .chart { overflow: auto; border: 1px solid #cad5e3; border-radius: .75rem; background: white; box-shadow: 0 6px 24px rgb(23 32 51 / 8%); }
+      object { display: block; min-width: 1000px; width: 100%; height: 920px; }
+      footer { color: #52627a; font-size: .9rem; line-height: 1.5; margin-top: 1.5rem; }
+      code { background: #e8eef5; border-radius: .25rem; padding: .1rem .25rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Weight and Balance Demo</h1>
+      <p class="lede">An educational demonstration of convex-hull pruning for longitudinal aircraft weight-and-balance validation. The chart shows all 256 discrete passenger centrograms for the illustrative Boeing 707-124 scenario.</p>
+      <nav class="links" aria-label="Demo artifacts">
+        <a href="demo/output/boeing_707_centograms.svg">Open SVG</a>
+        <a href="demo/output/centrograms.csv">Download centrograms CSV</a>
+        <a href="demo/output/summary.json">Open run summary</a>
+        <a href="data/boeing_707_124_demo.json">Open input data</a>
+        <a href="https://github.com/SiorMeir/WeightAndBalance">View source on GitHub</a>
+      </nav>
+      <section class="chart" aria-label="Centrogam chart">
+        <object data="demo/output/boeing_707_centograms.svg" type="image/svg+xml">Your browser does not support embedded SVG. <a href="demo/output/boeing_707_centograms.svg">Open the chart directly.</a></object>
+      </section>
+      <footer>
+        <strong>Safety notice:</strong> This is an algorithm demonstration only. Its aircraft inputs include illustrative values and must not be used for aircraft loading, dispatch, or flight operations. Reproduce the artifacts with <code>python demo/boeing_707_demo.py</code>.
+      </footer>
+    </main>
+  </body>
+</html>
