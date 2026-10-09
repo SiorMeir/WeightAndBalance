@@ -19,6 +19,7 @@ from typing import Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "output"
+DATA_PATH = ROOT.parent / "data" / "boeing_707_124_demo.json"
 EPSILON = 1e-7
 # The quadratic constraints use lb-in-scale moments. This absolute slack is
 # only for accumulated binary floating-point roundoff at a mathematical
@@ -58,47 +59,30 @@ class Configuration:
         return " / ".join(f"{choice.weight} lb @ {choice.station}" for choice in self.choices)
 
 
-# --- Public 707 source data -------------------------------------------------
-#
-# FAA TCDS 4A21 Rev. 8 (1 May 1973), Case I, gives the CG stations below.  The
-# datum is 50 in forward of the nose.  Fuel tank capacities and moment arms are
-# also taken from its 707-124 table.  The selected fuel *burn ordering* is only
-# a synthetic, piecewise-linear trajectory; TCDS 4A21 does not publish a fuel
-# flow schedule suitable for this demonstration.
-#
-# The published Case I table has a small non-convex fwd-limit notch around
-# 185–190k lb. The proposal assumes convex envelopes, so this is its *convex,
-# conservative inner subset*: every shown boundary is at least as restrictive
-# as the tabulated one. The polygon is counter-clockwise in (CG, gross weight).
-ENVELOPE: tuple[tuple[float, float], ...] = (
-    (824.9, 130_000),
-    (858.8, 130_000),
-    (866.8, 190_000),
-    (870.9, 220_000),
-    (870.9, 238_000),
-    (863.6, 248_000),
-    (822.5, 248_000),
-    (820.1, 238_000),
-    (820.1, 220_000),
-    (820.1, 190_000),
-)
+def load_demo_data(path: Path = DATA_PATH) -> dict:
+    """Read every model input from the tracked raw-data file."""
+    return json.loads(path.read_text(encoding="utf-8"))
 
-# Aggregate tank groups: (usable lb, arm in).  Values are public 707-124 data.
-TANKS = (
-    (23_363, 740.0, "center"),
-    (31_506, 791.6, "inboard mains"),
-    (32_196, 916.2, "outboard mains"),
-    (5_990, 1082.6, "reserves"),
-)
 
-# Deliberately illustrative rather than a tail-specific current W&B report.
-BASIC_AIRCRAFT = State(153_675, 153_675 * 850.0)
-PILOTS = State(2 * 205, 2 * 360.0)  # two stationary pilots, 205 lb each
-# Illustrative mandatory freight/bulk payload placed at the nominal aircraft CG.
-# It increases gross weight without deliberately biasing the longitudinal CG.
-CENTER_PAYLOAD = State(8_000, 8_000 * 850.0)
-PASSENGER_STATIONS = (650, 1_050)   # fwd/aft extremes of the demo loading area
-PASSENGER_WEIGHTS = (185, 225)
+DATA = load_demo_data()
+ENVELOPE: tuple[tuple[float, float], ...] = tuple(
+    (float(cg), float(weight)) for cg, weight in DATA["envelope"]["calculation_points_cg_station_in_gross_weight_lb"]
+)
+TANKS = tuple(
+    (float(tank["usable_weight_lb"]), float(tank["moment_arm_in"]), tank["name"])
+    for tank in sorted(DATA["fuel_tanks"], key=lambda tank: tank["fuel_sequence_order"])
+)
+ILLUSTRATIVE = DATA["illustrative_inputs"]
+BASIC = ILLUSTRATIVE["basic_aircraft"]
+BASIC_AIRCRAFT = State(float(BASIC["weight_lb"]), float(BASIC["weight_lb"]) * float(BASIC["cg_station_in"]))
+PILOT_DATA = ILLUSTRATIVE["stationary_pilots"]
+PILOTS = State(float(PILOT_DATA["count"] * PILOT_DATA["weight_each_lb"]), float(PILOT_DATA["count"] * PILOT_DATA["weight_each_lb"] * PILOT_DATA["station_in"]))
+CENTER_PAYLOAD_DATA = ILLUSTRATIVE["mandatory_center_payload"]
+CENTER_PAYLOAD = State(float(CENTER_PAYLOAD_DATA["weight_lb"]), float(CENTER_PAYLOAD_DATA["weight_lb"]) * float(CENTER_PAYLOAD_DATA["station_in"]))
+PASSENGER_DATA = ILLUSTRATIVE["roaming_passengers"]
+PASSENGER_STATIONS = tuple(int(value) for value in PASSENGER_DATA["station_endpoints_in"])
+PASSENGER_WEIGHTS = tuple(int(value) for value in PASSENGER_DATA["weight_endpoints_lb"])
+PASSENGER_COUNT = int(PASSENGER_DATA["count"])
 
 
 def fuel_waypoints() -> list[State]:
@@ -126,7 +110,7 @@ def first_light_group(choices: Sequence[PassengerChoice]) -> str:
 def make_configurations() -> list[Configuration]:
     choices = [PassengerChoice(w, s) for w in PASSENGER_WEIGHTS for s in PASSENGER_STATIONS]
     configurations = []
-    for combination in itertools.product(choices, repeat=4):
+    for combination in itertools.product(choices, repeat=PASSENGER_COUNT):
         passenger_state = State(
             sum(choice.weight for choice in combination),
             sum(choice.weight * choice.station for choice in combination),
@@ -369,7 +353,7 @@ def write_centrogams_csv(configurations: Sequence[Configuration], caps: dict[str
         "configuration_id", "classification", "branch_group", "configuration_fuel_cap_lb",
         "robust_fuel_cap_lb", "fuel_point", "fuel_lb", "gross_weight_lb", "cg_station_in",
         "moment_lb_in", "within_configuration_cap", "inside_envelope",
-    ] + [field for passenger in range(1, 5) for field in (f"passenger_{passenger}_weight_lb", f"passenger_{passenger}_station_in")]
+    ] + [field for passenger in range(1, PASSENGER_COUNT + 1) for field in (f"passenger_{passenger}_weight_lb", f"passenger_{passenger}_station_in")]
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fieldnames)
         writer.writeheader()

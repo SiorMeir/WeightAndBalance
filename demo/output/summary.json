@@ -3,7 +3,7 @@
   "noncritical_pruned_configurations": 240,
   "limiting_configurations": 16,
   "full_fuel_lb": 93055.0,
-  "mandatory_center_payload_lb": 8000,
+  "mandatory_center_payload_lb": 8000.0,
   "mandatory_center_payload_station_in": 850.0,
   "robust_fuel_cap_lb": 85015.00000001141,
   "lost_fuel_lb": 8039.999999988591,

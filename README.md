@@ -10,7 +10,7 @@ The current Boeing 707 example enumerates four passenger endpoint choices, draws
 python demo/boeing_707_demo.py
 ```
 
-The script regenerates the SVG visualization, JSON summary, and full centrogram CSV export in `demo/output/`.
+The script reads its complete 707 input model from [`data/boeing_707_124_demo.json`](data/boeing_707_124_demo.json), then regenerates the SVG visualization, JSON summary, and full centrogram CSV export in `demo/output/`.
 
 ## Safety
 

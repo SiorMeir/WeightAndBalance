@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "aircraft": {
+    "model": "Boeing 707-124",
+    "datum": "50 in forward of nose",
+    "source": {
+      "title": "FAA Type Certificate Data Sheet 4A21, Revision 8",
+      "revision_date": "1973-05-01",
+      "url": "https://www.scribd.com/document/206769306/Tcds-Boeing-707"
+    }
+  },
+  "envelope": {
+    "name": "Case I longitudinal CG envelope",
+    "source_points_cg_station_in_gross_weight_lb": [[824.9, 130000], [824.9, 185000], [820.1, 190000], [820.1, 220000], [820.1, 238000], [822.5, 248000], [863.6, 248000], [870.9, 238000], [870.9, 220000], [866.8, 190000], [866.3, 185000], [858.8, 130000]],
+    "calculation_points_cg_station_in_gross_weight_lb": [[824.9, 130000], [858.8, 130000], [866.8, 190000], [870.9, 220000], [870.9, 238000], [863.6, 248000], [822.5, 248000], [820.1, 238000], [820.1, 220000], [820.1, 190000]],
+    "calculation_points_note": "Conservative convex inner subset of the source table. The source's small forward-limit notch at 185–190k lb is excluded because this demo assumes a convex envelope."
+  },
+  "fuel_tanks": [
+    {"name": "center", "usable_weight_lb": 23363, "moment_arm_in": 740.0, "fuel_sequence_order": 1},
+    {"name": "inboard mains", "usable_weight_lb": 31506, "moment_arm_in": 791.6, "fuel_sequence_order": 2},
+    {"name": "outboard mains", "usable_weight_lb": 32196, "moment_arm_in": 916.2, "fuel_sequence_order": 3},
+    {"name": "reserves", "usable_weight_lb": 5990, "moment_arm_in": 1082.6, "fuel_sequence_order": 4}
+  ],
+  "illustrative_inputs": {
+    "notice": "These values are deliberately illustrative and are not tail-specific approved loading data.",
+    "basic_aircraft": {"weight_lb": 153675, "cg_station_in": 850.0},
+    "stationary_pilots": {"count": 2, "weight_each_lb": 205, "station_in": 360.0},
+    "mandatory_center_payload": {"weight_lb": 8000, "station_in": 850.0},
+    "roaming_passengers": {"count": 4, "weight_endpoints_lb": [185, 225], "station_endpoints_in": [650, 1050], "endpoint_model": "Each passenger independently occupies one of the four weight/station endpoint combinations."}
+  },
+  "fuel_interpolation": {"coordinates": "weight-moment", "note": "Fuel waypoints are accumulated in fuel_sequence_order and linearly interpolated in weight-moment coordinates. The order is illustrative, not an approved fuel-use schedule."}
+}

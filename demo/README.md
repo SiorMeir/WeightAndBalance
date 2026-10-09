@@ -25,6 +25,8 @@ Two pilots are stationary and an illustrative mandatory 8,000 lb bulk payload is
 
 The demo constructs five disjoint branch-and-bound groups: the first passenger who is light (P1 through P4), plus the all-heavy group. Each light group contains 16–128 real configurations and is bounded with a convex hull in weight–moment space. The certificate maximizes the transformed quadratic envelope constraint on each swept hull edge, including an interior stationary maximum when one exists.
 
+All calculation inputs are kept in [`../data/boeing_707_124_demo.json`](../data/boeing_707_124_demo.json): it retains both the transcribed source envelope table and the conservative convex subset used by the algorithm, tank data, fuel ordering, and every illustrative assumption.
+
 The educational implementation permits `1e-4` in its transformed quadratic certificate solely to absorb binary floating-point roundoff on a mathematical boundary. It is not a production numerical-precision contract.
 
 ## Data provenance and safety
