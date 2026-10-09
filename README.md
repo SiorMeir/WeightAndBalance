@@ -4,6 +4,11 @@ An educational Python demonstration of longitudinal aircraft weight-and-balance 
 
 The current Boeing 707 example enumerates four passenger endpoint choices, draws every centrogram, and distinguishes the configurations that determine the robust fuel cap from those safely pruned by a hull certificate.
 
+Read [the algorithm guide](ALGORITHMS.md) for the input model, certification math,
+pseudocode, complexity analysis, and a Lean 4 building-block example. The same
+guide is presented as a readable visual overview on the project's GitHub Pages
+home page.
+
 ## Run
 
 ```powershell
