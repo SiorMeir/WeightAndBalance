@@ -199,7 +199,7 @@ class Problem:
                 for t in ts:
                     v = a * t * t + b * t + c
                     if v > worst:
-                        worst, arg = v, (ei, s0[0] + t * (s1[0] - s0[0]))
+                        worst, arg = v, (ei, s0[0] + t * (s1[0] - s0[0]), s0[1] + t * (s1[1] - s0[1]))
         return worst, arg
 
     def certify(self, g, upto: float) -> Cert:
@@ -278,7 +278,8 @@ def solve(p: Problem, budget: int = 5000) -> Result:
     def log(depth, g, cert, verdict, action):
         trace.append(dict(step=len(trace) + 1, depth=depth, group=p.group_text(g), configs=prod(len(i) for i in g),
                           hull_n=cert.hull_n, worst=cert.worst, vertex_worst=cert.vertex_worst, tol=None,
-                          verdict=verdict, action=action, U=U, polys=cert.polys, ok=cert.ok))
+                          verdict=verdict, action=action, U=U, polys=cert.polys, ok=cert.ok, g=g,
+                          point=None if cert.ok or cert.arg is None else (cert.arg[2] / cert.arg[1], cert.arg[1])))
 
     seed_note = []
     for cfg in p.seeds(root):
@@ -304,7 +305,7 @@ def solve(p: Problem, budget: int = 5000) -> Result:
                 lower(cfg)
                 log(depth, g, cert, "fails, single config", f"exact evaluation, cap {evaluate(cfg)[0]:,.2f}")
                 break
-            e, wstar = cert.arg
+            e, wstar, _ = cert.arg
             w = p.witness(g, e, wstar)
             if lower(w):
                 log(depth, g, cert, f"fails {where}", f"real witness lowers U to {U:,.2f}; re-certify")

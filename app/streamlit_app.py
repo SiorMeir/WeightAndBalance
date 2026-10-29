@@ -199,25 +199,45 @@ with tab_flow:
     seeds = problem.seeds(tuple(tuple(range(len(s))) for s in problem.slot_states))
     st.dataframe(pd.DataFrame([{**problem.describe(c), "Cap": problem.cap(problem.base_of(c))[0]} for c in seeds]), hide_index=True, width="stretch")
     st.write(f"After seeding: **U = {min(problem.cap(problem.base_of(c))[0] for c in seeds):,.2f}**.")
-    trace = pd.DataFrame(result.trace).drop(columns=["polys", "ok", "tol"])
+    trace = pd.DataFrame(result.trace).drop(columns=["polys", "ok", "tol", "g", "point"])
     trace.columns = ["Step", "Depth", "Group (choices kept)", "Configs", "Hull vertices", "Worst q (hull edges)", "Worst q (vertices)", "Verdict", "Action", "U after"]
     st.dataframe(trace, hide_index=True, width="stretch")
     st.write(f"{result.certificates} certificates, {result.exact_evals} exact evaluations, {result.pruned:,} of {result.total:,} configurations pruned by certificate.")
 
-    st.markdown("#### Inspect a step")
-    step = st.select_slider("Step", options=[t["step"] for t in result.trace], value=1)
+    st.markdown("#### Step through the algorithm")
+    n_steps = len(result.trace)
+    if st.session_state.get("step_for") != (preset, n_steps):
+        st.session_state.update(step=1, step_for=(preset, n_steps))
+
+    def move(delta):
+        st.session_state.step = min(n_steps, max(1, st.session_state.step + delta))
+
+    p1, p2, p3 = st.columns([1, 1, 6])
+    p1.button("◀ Previous", on_click=move, args=(-1,), disabled=st.session_state.step <= 1, width="stretch")
+    p2.button("Next ▶", on_click=move, args=(1,), disabled=st.session_state.step >= n_steps, width="stretch")
+    step = st.session_state.step
     t = result.trace[step - 1]
-    st.write(f"**Step {step}:** group `{t['group']}` ({t['configs']:,} configs), {t['verdict']}. Worst `q` = {t['worst']:.4g}. {t['action']}.")
+    p3.markdown(f"**Step {step} of {n_steps}** · group: {t['group']} · {t['configs']:,} loadings")
+    if t["ok"]:
+        st.success(f"The swept hull of this whole group stays inside the envelope up to U = {t['U']:,.2f}: **all {t['configs']:,} loadings are safe, none is solved one by one.**")
+    elif t["point"] is None:
+        st.warning(f"Not certified. {t['action']}.")
+    else:
+        st.warning(f"Hull sticks out of the envelope (worst q = {t['worst']:.4g}, {t['verdict']}). {t['action']}.")
     fig = go.Figure()
     env = problem.envelope + problem.envelope[:1]
-    fig.add_scatter(x=[x for x, _ in env], y=[w for _, w in env], line=dict(color="#167c45", width=3), name="Envelope")
+    fig.add_scatter(x=[x for x, _ in env], y=[w for _, w in env], fill="toself", fillcolor="rgba(22,124,69,.10)", line=dict(color="#167c45", width=3), name="Envelope")
+    color = "39,125,161" if t["ok"] else "224,93,47"
     for k, poly in enumerate(t["polys"]):
         outline = wb.sample_poly(poly)
-        color = "39,125,161" if t["ok"] else "224,93,47"
-        fig.add_scatter(x=[x for x, _ in outline], y=[w for _, w in outline], fill="toself", fillcolor=f"rgba({color},.15)",
-                        line=dict(color=f"rgb({color})", width=1.5), name=f"Swept hull, fuel segment {k + 1}")
+        fig.add_scatter(x=[x for x, _ in outline], y=[w for _, w in outline], fill="toself", fillcolor=f"rgba({color},.18)",
+                        line=dict(color=f"rgb({color})", width=1.5), name="Swept hull of the group", legendgroup="hull", showlegend=k == 0, hoverinfo="skip")
+    draw(fig, itertools.product(*t["g"]), t["configs"], t["U"], "Real centrograms in the group", line=dict(color="#1d3557", width=1), opacity=0.5)
+    if t["point"] is not None:
+        fig.add_scatter(x=[t["point"][0]], y=[t["point"][1]], mode="markers", marker=dict(color="#c1121f", size=14, symbol="x"), name="Worst violation")
     fig.update_layout(xaxis_title="CG station", yaxis_title="Gross weight", height=520, legend=dict(orientation="h", y=-0.2), margin=dict(t=20))
     st.plotly_chart(fig, width="stretch")
+    st.caption("Shaded region = bound of every loading in the group across the fuel sweep. Inside the green envelope means certified. A red X on an edge with no real centrogram near it is an artificial failure.")
 
     st.markdown("### 6. Result")
     st.write(f"Robust fuel cap **{result.cap:,.2f}** of {result.full:,.2f} full fuel. It is the minimum over all real configurations of each one's maximum safe fuel *prefix*.")
