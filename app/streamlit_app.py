@@ -19,7 +19,11 @@ import wb_core as wb
 
 st.set_page_config(page_title="Weight & balance fuel cap", layout="wide")
 
-PRESETS = {"Boeing 707-124 (demo data)": wb.preset_707, "Sloped aft limit (hull fails artificially)": wb.preset_toy}
+PRESETS = {
+    "Boeing 707-124 (demo data)": wb.preset_707,
+    "Sloped aft limit (hull fails artificially)": wb.preset_toy,
+    "Light twin (illustrative, 64 loadings)": wb.preset_light_twin,
+}
 COLUMNS = {
     "envelope": ["CG", "Weight"],
     "basics": ["Case", "Weight", "CG"],
@@ -39,40 +43,42 @@ st.sidebar.markdown(
 )
 crosscheck = st.sidebar.checkbox("Cross-check with brute force (≤ 5,000 configs)", value=True)
 
-tab_solve, tab_flow = st.tabs(["Solver", "Calculation process"])
+tab_in, tab_solve, tab_flow = st.tabs(["1 · Inputs", "2 · Result", "3 · Calculation process"])
 
 
-def table(key: str, help_text: str):
-    st.caption(help_text)
-    return st.data_editor(pd.DataFrame(data[key], columns=COLUMNS[key]), num_rows="dynamic", key=f"{preset}/{key}", width="stretch")
+def table(key: str, title: str, help_text: str, height: int = 230):
+    with st.container(border=True):
+        st.markdown(f"**{title}**")
+        st.caption(help_text)
+        return st.data_editor(pd.DataFrame(data[key], columns=COLUMNS[key]), num_rows="dynamic", key=f"{preset}/{key}", width="stretch", height=height)
 
+
+with tab_in:
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        env_df = table("envelope", "Envelope", "(CG, weight) vertices around a convex polygon.")
+        tnk_df = table("tanks", "Fuel tanks", "Fill order. Burn-down is the reverse.", 200)
+    with c2:
+        bas_df = table("basics", "Basic aircraft cases", "Real cases, e.g. AFT-HEAVY / FWD-LIGHT. Exactly one applies.")
+        fix_df = table("fixed", "Fixed loads", "Always present: crew, mandatory payload.", 200)
+    with c3:
+        itm_df = table("items", "Variable items", "One row per choice. Rows with the same Item are alternatives; add a weight-0 row to make an item optional.", 500)
+
+def rows(df):
+    return [tuple(r) for r in df.dropna().itertuples(index=False)]
+
+try:
+    problem = wb.problem_from_rows(rows(env_df), rows(bas_df), rows(fix_df), rows(itm_df), rows(tnk_df))
+    result = wb.solve(problem)
+except ValueError as err:
+    st.error(str(err))
+    st.stop()
+
+
+with tab_in:
+    st.caption(f"{result.total:,} real configurations = {' × '.join(str(len(s)) for s in problem.slot_states)} choices ({', '.join(problem.slot_names)}).")
 
 with tab_solve:
-    with st.expander("Inputs", expanded=True):
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**Envelope** (CG, gross weight), convex")
-            env_df = table("envelope", "Vertices in order around the polygon (either direction).")
-            st.markdown("**Basic aircraft cases**")
-            bas_df = table("basics", "Each row is a real case (e.g. AFT-HEAVY, FWD-LIGHT). The aircraft is in exactly one.")
-            st.markdown("**Fixed loads**")
-            fix_df = table("fixed", "Always present: crew, mandatory payload.")
-        with c2:
-            st.markdown("**Variable items**")
-            itm_df = table("items", "One row per allowed choice. Rows sharing an Item name are alternatives (exactly one applies). Optional item: add a Weight 0 row.")
-            st.markdown("**Fuel tanks**")
-            tnk_df = table("tanks", "Burn-down is the reverse of this fill order; fuel is linear in weight-moment between tanks.")
-
-    def rows(df):
-        return [tuple(r) for r in df.dropna().itertuples(index=False)]
-
-    try:
-        problem = wb.problem_from_rows(rows(env_df), rows(bas_df), rows(fix_df), rows(itm_df), rows(tnk_df))
-        result = wb.solve(problem)
-    except ValueError as err:
-        st.error(str(err))
-        st.stop()
-
     lost = result.full - result.cap
     m = st.columns(5)
     m[0].metric("Robust fuel cap", f"{result.cap:,.1f}")
@@ -93,37 +99,53 @@ with tab_solve:
         (st.success if abs(bf - result.cap) < 1e-6 else st.error)(f"Brute force over all {result.total:,} configurations gives {bf:,.2f}.")
 
     # ---- envelope / centrogram plot -------------------------------------
-    def build_figure():
-        fig = go.Figure()
-        env = problem.envelope + problem.envelope[:1]
-        fig.add_scatter(x=[x for x, _ in env], y=[w for _, w in env], fill="toself", fillcolor="rgba(22,124,69,.12)",
-                        line=dict(color="#167c45", width=3), name="Envelope")
-        root = tuple(tuple(range(len(s))) for s in problem.slot_states)
-        if result.cap > wb.EPS:
-            for k, poly in enumerate(problem.certify(root, result.cap).polys):
-                outline = wb.sample_poly(poly)
-                fig.add_scatter(x=[x for x, _ in outline], y=[w for _, w in outline], fill="toself", fillcolor="rgba(39,125,161,.10)",
-                                line=dict(color="rgba(39,125,161,.5)", width=1, dash="dot"), name="Hull of all configs up to the cap",
-                                legendgroup="hull", showlegend=k == 0, hoverinfo="skip")
-        configs = itertools.product(*(range(len(s)) for s in problem.slot_states)) if result.total <= 2000 else result.evaluated
-        safe, beyond = ([], []), ([], [])
-        for cfg in configs:
-            base = problem.base_of(cfg)
-            for (xs, ys), pts in ((safe, problem.centrogram(base, result.cap)), (beyond, problem.centrogram(base, result.full))):
-                xs += [pt[1] / pt[0] for pt in pts] + [None]
-                ys += [pt[0] for pt in pts] + [None]
-        fig.add_scatter(x=beyond[0], y=beyond[1], mode="lines", line=dict(color="#94a3b8", width=1, dash="dash"), opacity=0.5, name="Beyond the cap (unused)", hoverinfo="skip")
-        fig.add_scatter(x=safe[0], y=safe[1], mode="lines", line=dict(color="#277da1", width=1.5), opacity=0.45, name="Centrograms up to the cap", hoverinfo="skip")
-        if result.config is not None:
-            pts = problem.centrogram(problem.base_of(result.config), result.cap)
-            fig.add_scatter(x=[p[1] / p[0] for p in pts], y=[p[0] for p in pts], mode="lines+markers", line=dict(color="#e05d2f", width=3), name="Limiting configuration")
-            fig.add_scatter(x=[pts[-1][1] / pts[-1][0]], y=[pts[-1][0]], mode="markers", marker=dict(color="#e05d2f", size=13, symbol="x"), name="Fuel cap reached")
-        fig.update_layout(xaxis_title="CG station", yaxis_title="Gross weight", height=640, legend=dict(orientation="h", y=-0.15), margin=dict(t=20))
-        return fig
+    MAX_DRAW = 5000
+    for key in ("show_all", "show_elim"):
+        st.session_state.setdefault(key, False)
 
-    st.plotly_chart(build_figure(), width="stretch")
-    if result.total > 2000:
-        st.caption(f"{result.total:,} configurations: only the {len(result.evaluated)} that were evaluated exactly are drawn; the shaded hull bounds all of them.")
+    def toggle(key):
+        st.session_state[key] = not st.session_state[key]
+
+    b1, b2, _ = st.columns([1, 1, 3])
+    b1.button(("Hide" if st.session_state.show_all else "Show") + " all centrograms", on_click=toggle, args=("show_all",), width="stretch")
+    b2.button(("Hide" if st.session_state.show_elim else "Show") + " eliminated centrograms", on_click=toggle, args=("show_elim",), width="stretch")
+
+    def draw(fig, configs, n, upto, name, **style):
+        """One trace for many centrograms (None-separated); thinned if there are too many."""
+        stride, xs, ys = max(1, -(-n // MAX_DRAW)), [], []
+        for cfg in itertools.islice(configs, 0, None, stride):
+            pts = problem.centrogram(problem.base_of(cfg), upto)
+            xs += [p[1] / p[0] for p in pts] + [None]
+            ys += [p[0] for p in pts] + [None]
+        fig.add_scatter(x=xs, y=ys, mode="lines", name=f"{name} ({n:,})", hoverinfo="skip", **style)
+        if stride > 1:
+            st.caption(f"{name}: showing every {stride}th of {n:,} centrograms.")
+
+    fig = go.Figure()
+    env = problem.envelope + problem.envelope[:1]
+    fig.add_scatter(x=[x for x, _ in env], y=[w for _, w in env], fill="toself", fillcolor="rgba(22,124,69,.12)",
+                    line=dict(color="#167c45", width=3), name="Envelope")
+    root = tuple(tuple(range(len(s))) for s in problem.slot_states)
+    if result.cap > wb.EPS:
+        for k, poly in enumerate(problem.certify(root, result.cap).polys):
+            outline = wb.sample_poly(poly)
+            fig.add_scatter(x=[x for x, _ in outline], y=[w for _, w in outline], fill="toself", fillcolor="rgba(39,125,161,.10)",
+                            line=dict(color="rgba(39,125,161,.5)", width=1, dash="dot"), name="Hull of all configs up to the cap",
+                            legendgroup="hull", showlegend=k == 0, hoverinfo="skip")
+    if st.session_state.show_all:
+        everything = lambda: itertools.product(*(range(len(s)) for s in problem.slot_states))
+        draw(fig, everything(), result.total, result.full, "Full fuel, unused part", line=dict(color="#94a3b8", width=1, dash="dash"), opacity=0.5)
+        draw(fig, everything(), result.total, result.cap, "All centrograms up to the cap", line=dict(color="#277da1", width=1.5), opacity=0.45)
+    if st.session_state.show_elim:
+        eliminated = itertools.chain.from_iterable(itertools.product(*g) for g in result.pruned_groups)
+        draw(fig, eliminated, result.pruned, result.cap, "Eliminated by a hull certificate", line=dict(color="#2a9d8f", width=2), opacity=0.8)
+    if result.config is not None:
+        pts = problem.centrogram(problem.base_of(result.config), result.cap)
+        fig.add_scatter(x=[p[1] / p[0] for p in pts], y=[p[0] for p in pts], mode="lines+markers", line=dict(color="#e05d2f", width=3), name="Limiting configuration")
+        fig.add_scatter(x=[pts[-1][1] / pts[-1][0]], y=[pts[-1][0]], mode="markers", marker=dict(color="#e05d2f", size=13, symbol="x"), name="Fuel cap reached")
+    fig.update_layout(xaxis_title="CG station", yaxis_title="Gross weight", height=640, legend=dict(orientation="h", y=-0.15), margin=dict(t=20))
+    st.plotly_chart(fig, width="stretch")
+
 
 # ===================================================================
 with tab_flow:

@@ -94,6 +94,7 @@ class Result:
     pruned: int
     complete: bool
     evaluated: list
+    pruned_groups: list = field(default_factory=list)  # groups certified safe, never enumerated
 
 
 class Problem:
@@ -272,7 +273,7 @@ def solve(p: Problem, budget: int = 5000) -> Result:
             return True
         return False
 
-    trace, certs, pruned = [], 0, 0
+    trace, certs, pruned, pruned_groups = [], 0, 0, []
 
     def log(depth, g, cert, verdict, action):
         trace.append(dict(step=len(trace) + 1, depth=depth, group=p.group_text(g), configs=prod(len(i) for i in g),
@@ -294,6 +295,7 @@ def solve(p: Problem, budget: int = 5000) -> Result:
             n = prod(len(i) for i in g)
             if cert.ok:
                 pruned += n
+                pruned_groups.append(g)
                 log(depth, g, cert, "certified", f"pruned {n} configs without enumerating them")
                 break
             where = "at a hull vertex (a real combination)" if cert.vertex_worst > 0 else "only inside a hull edge (possibly artificial)"
@@ -311,7 +313,7 @@ def solve(p: Problem, budget: int = 5000) -> Result:
             log(depth, g, cert, f"fails {where}", "witness does not lower U; split group in two")
             stack.extend((h, depth + 1) for h in reversed(halves))
             break
-    return Result(U, p.full, best, binding, trace, p.total, len(evaluated), certs, pruned, complete, list(evaluated))
+    return Result(U, p.full, best, binding, trace, p.total, len(evaluated), certs, pruned, complete, list(evaluated), pruned_groups)
 
 
 def brute_force(p: Problem) -> float:
@@ -351,6 +353,19 @@ def preset_toy() -> dict:
     )
 
 
+def preset_light_twin() -> dict:
+    """Illustrative light twin (lb / in), sloped fwd and aft limits. Numbers are fragile: rounding them
+    makes the root hull certify immediately."""
+    return dict(
+        envelope=[(78, 1600), (79, 2400), (81, 3100), (97.8, 3100), (83.3, 1600)],
+        basics=[("Basic aircraft", 1800, 86.8)],
+        fixed=[("Pilot + front passenger", 360, 80.5)],
+        items=[(f"Rear passenger {i}", w, x) for i in (1, 2) for w in (110, 210) for x in (98, 120)]
+        + [("Baggage nose", 0, 0), ("Baggage nose", 80, 30), ("Baggage aft", 0, 0), ("Baggage aft", 120, 150)],
+        tanks=[("Main", 400, 95), ("Aux", 150, 90)],
+    )
+
+
 def problem_from_rows(envelope, basics, fixed, items, tanks) -> Problem:
     grouped: dict = {}
     for name, w, x in items:
@@ -359,7 +374,7 @@ def problem_from_rows(envelope, basics, fixed, items, tanks) -> Problem:
 
 
 if __name__ == "__main__":
-    for name, preset in (("707", preset_707()), ("toy", preset_toy())):
+    for name, preset in (("707", preset_707()), ("toy", preset_toy()), ("light twin", preset_light_twin())):
         p = problem_from_rows(**preset)
         r = solve(p)
         assert r.complete and abs(r.cap - brute_force(p)) < 1e-6, name
