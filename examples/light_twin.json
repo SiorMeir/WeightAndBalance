@@ -1,0 +1,28 @@
+{
+  "envelope": [
+    {"cg": 78, "weight": 1600},
+    {"cg": 79, "weight": 2400},
+    {"cg": 81, "weight": 3100},
+    {"cg": 97.8, "weight": 3100},
+    {"cg": 83.3, "weight": 1600}
+  ],
+  "tails": [
+    {"id": "4X-AAA", "weight": 1800, "cg": 86.8}
+  ],
+  "items": [
+    {"name": "Pilot + front passenger", "weight": 360, "cg": 80.5},
+    {"name": "Rear passenger 1", "weight": 160, "weight_delta": 50, "cg": 109, "cg_delta": 11},
+    {"name": "Rear passenger 2", "weight": 160, "weight_delta": 50, "cg": 109, "cg_delta": 11},
+    {"name": "Baggage nose", "weight": 80, "cg": 30, "optional": true},
+    {"name": "Baggage aft", "weight": 120, "cg": 150, "optional": true}
+  ],
+  "fuel_flow": [
+    {"weight": 0, "moment": 0},
+    {"weight": 400, "moment": 38000},
+    {"weight": 550, "moment": 51500}
+  ],
+  "options": {
+    "all_centrograms": false,
+    "max_steps": 5000
+  }
+}

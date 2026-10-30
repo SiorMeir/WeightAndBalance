@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import logging
 from dataclasses import dataclass, field
 from math import prod
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 EPS = 1e-7
 REL_TOL = 1e-9  # certificate slack, relative to the magnitude of the q terms
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "boeing_707_124_demo.json"
+logger = logging.getLogger("wb_core")
 
 State = tuple[float, float]  # (weight, moment)
 
@@ -280,10 +282,18 @@ def solve(p: Problem, budget: int = 5000) -> Result:
                           hull_n=cert.hull_n, worst=cert.worst, vertex_worst=cert.vertex_worst, tol=None,
                           verdict=verdict, action=action, U=U, polys=cert.polys, ok=cert.ok, g=g,
                           point=None if cert.ok or cert.arg is None else (cert.arg[2] / cert.arg[1], cert.arg[1])))
+        logger.debug(
+            "step=%d depth=%d group=%r configs=%d hull_n=%d worst=%.4g vertex_worst=%.4g U=%.2f verdict=%r action=%r",
+            len(trace), depth, p.group_text(g), prod(len(i) for i in g), cert.hull_n,
+            cert.worst, cert.vertex_worst, U, verdict, action,
+        )
 
     seed_note = []
     for cfg in p.seeds(root):
-        seed_note.append((cfg, evaluate(cfg)[0], lower(cfg)))
+        cap = evaluate(cfg)[0]
+        lowered = lower(cfg)
+        seed_note.append((cfg, cap, lowered))
+        logger.debug("seed %s cap=%.2f lowers_U=%s", p.describe(cfg), cap, lowered)
     stack, complete = [(root, 0)], True
     while stack:
         if len(trace) >= budget:
