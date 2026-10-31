@@ -97,8 +97,8 @@ chart drawing; API total is the API's existing measurement, before JSON response
 serialization and transfer. There is no run cache or automatic rerun.
 
 The frontend uses plain JavaScript and the installed Plotly package's bundled
-JavaScript, without a Node build step or CDN. The existing API ingress also
-serves it at `/bakat/api/ui/`; the Streamlit demos remain available separately.
+JavaScript, without a Node build step or CDN. When deployed behind an ingress,
+the webapp is available at `<api-prefix>/ui/`; the Streamlit demos remain available separately.
 The Docker image includes the web assets and example requests.
 
 Run the API and frontend calculation checks with:
@@ -117,25 +117,26 @@ py -m streamlit run demo\streamlit_app.py
 ## Deploy to k3s
 
 The included manifests deploy the stateless API behind the k3s-bundled Traefik
-ingress controller. They use the `weight-and-balance` namespace and the application image
-`192.168.68.59:30500/weight-and-balance:web-20261031-1793466443` from the homelab's
-local registry.
+ingress controller in the `weight-and-balance` namespace. Configure
+`deploy/k8s/api.yaml` with your container image and ingress hostname before deploying.
 
-Build and publish the image from the repository root:
+Build and publish the image from the repository root, replacing the example
+registry and tag with your own:
 
 ```powershell
-docker build --platform linux/amd64 --tag 192.168.68.59:30500/weight-and-balance:web-20261031-1793466443 .
-docker push 192.168.68.59:30500/weight-and-balance:web-20261031-1793466443
+$image = "registry.example.com/weight-and-balance:v1"
+docker build --platform linux/amd64 --tag $image .
+docker push $image
 ```
 
 For subsequent releases, choose a new image tag and update `deploy/k8s/api.yaml`
-to match before applying. Docker must allow the homelab's HTTP registry at
-`192.168.68.59:30500`.
+to match before applying.
 
-The ingress exposes the API schema at
-[`https://404nootfound.com/bakat/api/docs`](https://404nootfound.com/bakat/api/docs),
-and calculations at `POST /bakat/api/standard-calc`.
-The registered DNS record must point at the Traefik ingress endpoint. Then
+The ingress exposes the API schema at `<api-prefix>/docs`, the webapp at
+`<api-prefix>/ui/`, and calculations at `POST <api-prefix>/standard-calc`.
+If changing the prefix, keep the ingress path, strip-prefix middleware, and
+Uvicorn `--root-path` setting in sync. Point your hostname's DNS record at the
+Traefik ingress endpoint. Then
 apply and wait for the rollout:
 
 ```powershell
