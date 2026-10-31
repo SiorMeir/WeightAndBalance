@@ -2,7 +2,10 @@
 
 An educational Python demonstration of longitudinal aircraft weight-and-balance analysis using convex-hull pruning in weight–moment coordinates.
 
-The current Boeing 707 example enumerates four passenger endpoint choices, draws every centrogram, and distinguishes the configurations that determine the robust fuel cap from those safely pruned by a hull certificate.
+The repository has two complementary Boeing 707 demonstrations:
+
+- `demo/boeing_707_demo.py` is a small exhaustive reference solver. It draws every centrogram and is useful for validating the compact algorithm on manageable cases.
+- `demo/streamlit_app.py` is the interactive convex-hull branch-and-bound explorer. It keeps passenger choices factorised, certifies whole groups through Minkowski-sum hulls, and draws only selected hulls and real witnesses.
 
 Read [the algorithm guide](ALGORITHMS.md) for the input model, certification math,
 pseudocode, complexity analysis, and a Lean 4 building-block example. The same
@@ -60,6 +63,89 @@ Run the API test suite with:
 ```bash
 pytest app/test_api.py
 ```
+
+## Centrogram webapp
+
+The dedicated frontend is served by the same API process. After installing
+`app/requirements.txt`, start it with:
+
+```powershell
+python -m uvicorn api:app --app-dir app --port 8000
+```
+
+Open [the centrogram explorer](http://localhost:8000/ui/). It starts with the
+Light Twin inputs without running a calculation. Boeing 707 and toy presets are
+also available from `GET /ui/examples`, using the existing demonstration data.
+
+Expand an input section to edit every REST request field. Import and export use
+the `POST /standard-calc` JSON request format; edits stay in browser memory until
+exported. Units are shown for known examples and remain unspecified for imported
+requests. Use one consistent weight/CG/datum system and true weight × arm moments.
+
+Run simulations explicitly. The chart shows critical centrograms by default;
+request all centrograms in Simulation options to enable the all-loading view
+(API limit: 10,000 loadings). Hover for point and component values, or click a
+curve / use the loading selector to pin its details. Solid paths end at each
+loading's own cap; dashed paths continue beyond it. Zooming resamples the curves
+in weight–moment space. An incomplete solve displays an **unproven upper bound**.
+Editing inputs marks the previous result stale; its chart retains the submitted
+input snapshot.
+
+The timing strip separates solver, centrogram construction, API total, and
+browser request duration. Browser duration includes response parsing and excludes
+chart drawing; API total is the API's existing measurement, before JSON response
+serialization and transfer. There is no run cache or automatic rerun.
+
+The frontend uses plain JavaScript and the installed Plotly package's bundled
+JavaScript, without a Node build step or CDN. The existing API ingress also
+serves it at `/bakat/api/ui/`; the Streamlit demos remain available separately.
+The Docker image includes the web assets and example requests.
+
+Run the API and frontend calculation checks with:
+
+```powershell
+python -m pytest app/test_api.py
+node --test app/web/model.test.mjs
+```
+
+For the compact interactive explorer, install `demo/requirements-streamlit.txt` and run:
+
+```powershell
+py -m streamlit run demo\streamlit_app.py
+```
+
+## Deploy to k3s
+
+The included manifests deploy the stateless API behind the k3s-bundled Traefik
+ingress controller. They use the `weight-and-balance` namespace and the application image
+`192.168.68.59:30500/weight-and-balance:web-20261031-1793466443` from the homelab's
+local registry.
+
+Build and publish the image from the repository root:
+
+```powershell
+docker build --platform linux/amd64 --tag 192.168.68.59:30500/weight-and-balance:web-20261031-1793466443 .
+docker push 192.168.68.59:30500/weight-and-balance:web-20261031-1793466443
+```
+
+For subsequent releases, choose a new image tag and update `deploy/k8s/api.yaml`
+to match before applying. Docker must allow the homelab's HTTP registry at
+`192.168.68.59:30500`.
+
+The ingress exposes the API schema at
+[`https://404nootfound.com/bakat/api/docs`](https://404nootfound.com/bakat/api/docs),
+and calculations at `POST /bakat/api/standard-calc`.
+The registered DNS record must point at the Traefik ingress endpoint. Then
+apply and wait for the rollout:
+
+```powershell
+kubectl apply -k deploy/k8s
+kubectl -n weight-and-balance rollout status deployment/weight-and-balance-api
+```
+
+The ingress intentionally starts as HTTP on Traefik's `web` entrypoint. Add
+your cluster's TLS/certificate configuration before exposing it to the public
+internet.
 
 ## Safety
 

@@ -142,6 +142,40 @@ The maximum occurs at an endpoint or, when `A < 0`, at the stationary point
 `-B / (2A)` if it lies on the edge. Checking those candidates for every swept-hull
 edge and every envelope edge is a certificate for the whole group.
 
+## What the interactive compact explorer actually does
+
+The Streamlit explorer is deliberately **not** an all-centrogram viewer.  Its
+reference predecessor remains useful for small-case validation, but it is not
+the algorithm demonstrated in the interactive search.
+
+For `n` passengers with `k` endpoint contributions each, the explorer keeps one
+allowed-choice set per passenger.  Its root node is represented by:
+
+```text
+H_root = H_fixed ⊕ conv(S_1) ⊕ ... ⊕ conv(S_n)
+```
+
+It does not create `k^n` `Configuration` objects.  The initial candidate `U`
+comes from a small, fixed set of **real** seed centrograms (the uniform endpoint
+loads).  Each queued group is then handled as follows:
+
+1. Build its base hull from the allowed endpoint hull of each still-free
+   passenger, using Minkowski sums in weight–moment space.
+2. Sweep that hull along every fuel segment through `U` and apply the quadratic
+   certificate above.
+3. If certified, remove the entire group. No centrogram in the group is
+   materialised or drawn.
+4. If unresolved, split one passenger's still-allowed endpoint set into two
+   smaller factorised groups. A failed hull is not treated as an unsafe aircraft.
+5. Only when a group represents one real combination, calculate its centrogram.
+   That real result alone may reduce `U`.
+
+The visual trace identifies the real seed/leaf centrograms separately from the
+group nodes.  It plots a selected group hull, its most restrictive swept hull,
+and one real witness—not every possible loading path.  A configurable group
+budget returns `unresolved` if it is exhausted; the current `U` is then only a
+real-configuration upper bound, not an asserted robust fuel cap.
+
 ## Branch-and-bound pseudocode
 
 ```text
