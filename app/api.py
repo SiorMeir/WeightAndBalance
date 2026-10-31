@@ -12,14 +12,17 @@ import os
 import time
 import uuid
 from contextvars import ContextVar
+from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 import wb_core as wb
+from web_examples import example_requests
 
 ALL_CENTROGRAMS_LIMIT = 10_000
 
@@ -342,6 +345,27 @@ app = FastAPI(
     description="Educational weight-and-balance calculation service. Not dispatch software.",
     version="0.1.0",
 )
+
+
+@app.get("/ui/examples")
+def ui_examples() -> list[dict]:
+    return [
+        {**example, "request": CalcRequest.model_validate(example["request"]).model_dump()}
+        for example in example_requests()
+    ]
+
+
+@app.get("/ui/plotly.min.js", include_in_schema=False)
+def plotly_asset() -> FileResponse:
+    import plotly
+
+    return FileResponse(
+        Path(plotly.__file__).parent / "package_data" / "plotly.min.js",
+        media_type="text/javascript",
+    )
+
+
+app.mount("/ui", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="ui")
 
 
 @app.middleware("http")

@@ -190,3 +190,37 @@ def test_solver_self_check_still_passes():
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert completed.stdout.rstrip().endswith("ok")
+
+
+def test_web_examples_preserve_existing_preset_results():
+    client = TestClient(api.app)
+    examples = client.get("/ui/examples").json()
+    assert [example["id"] for example in examples] == ["light-twin", "boeing-707", "toy"]
+    presets = [wb.preset_light_twin(), wb.preset_707(), wb.preset_toy()]
+    for example, preset in zip(examples, presets):
+        problem = api.build_problem(api.CalcRequest.model_validate(example["request"]))
+        reference = wb.problem_from_rows(**preset)
+        assert problem.total == reference.total
+        assert problem.full == reference.full
+        assert problem.envelope == reference.envelope
+        assert abs(wb.solve(problem).cap - wb.solve(reference).cap) < 1e-6
+        # Compare every loading's zero-fuel state, including fixed loads moved into items.
+        def bases(p):
+            return sorted(tuple(round(v, 6) for v in p.base_of(cfg)) for cfg in api.itertools.product(*(range(len(s)) for s in p.slot_states)))
+        assert bases(problem) == bases(reference)
+
+
+def test_web_assets_and_examples_work_under_proxy_prefix():
+    for prefix in ("", "/bakat/api"):
+        client = TestClient(api.app, root_path=prefix)
+        page = client.get(prefix + "/ui/")
+        assert page.status_code == 200
+        assert 'href="styles.css"' in page.text
+        assert 'src="app.mjs"' in page.text
+        assert client.get(prefix + "/ui/examples").status_code == 200
+        for asset, expected_type in [("styles.css", "text/css"), ("app.mjs", "javascript"), ("model.mjs", "javascript"), ("chart.mjs", "javascript"), ("plotly.min.js", "javascript")]:
+            response = client.get(prefix + "/ui/" + asset)
+            assert response.status_code == 200
+            assert expected_type in response.headers["content-type"]
+        assert client.post(prefix + "/standard-calc", json=light_twin_payload()).json()["fuel_cap"] == 320
+        assert client.get(prefix + "/docs").status_code == 200

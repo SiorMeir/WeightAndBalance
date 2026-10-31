@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weight & balance · Centrogram explorer</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="plotly.min.js" defer></script>
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="./">Weight <span>&</span> balance</a>
+    <div class="toolbar">
+      <label class="sr-only" for="example">Example</label><select id="example" disabled><option>Loading examples…</option></select>
+      <button id="import" disabled>Import JSON</button><input id="file" type="file" accept=".json,application/json" hidden>
+      <button id="export" disabled>Export JSON</button>
+      <button id="run" class="primary" disabled>Run simulation</button>
+    </div>
+  </header>
+  <main>
+    <div class="page-heading"><div><p class="eyebrow">Longitudinal analysis</p><h1>Centrogram explorer<span>.</span></h1></div><p class="scenario-note" id="scenario-note">Loading example inputs.</p></div>
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+    <div class="workspace">
+      <aside class="inputs" aria-label="Scenario inputs">
+        <div class="section-heading"><h2>Scenario inputs</h2><span id="edited" class="tag">Example</span></div>
+        <p class="muted intro">Inspect the loading. Expand to edit.</p>
+        <div id="sections"></div>
+        <div class="input-note"><strong>Discrete endpoint model</strong><p>Weight and CG tolerances use their bounds only. Fuel is interpolated in weight–moment space.</p></div>
+        <p class="units" id="units"></p>
+      </aside>
+      <section class="results" aria-label="Simulation results">
+        <div class="result-heading"><h2>Envelope & centrograms</h2><span id="status" class="tag">Ready to run</span></div>
+        <div id="metrics" class="metrics"><div><span>Robust fuel cap</span><strong>—</strong><small>Run a simulation to calculate</small></div><div><span>Full fuel</span><strong id="preview-full">—</strong><small>From the input trajectory</small></div><div><span>Loadings evaluated</span><strong>—</strong><small>Exact evaluations / total</small></div></div>
+        <div class="chart-controls">
+          <div><label><input id="layer-envelope" type="checkbox" checked> Envelope</label><label><input id="layer-curves" type="checkbox" checked> Centrograms</label></div>
+          <div><label><input id="all" type="checkbox" disabled> All centrograms</label><button id="reset" class="text-button">Reset view</button></div>
+        </div>
+        <div class="chart-wrap"><div id="chart" role="img" aria-label="CG versus gross weight. Loading details are available in the loading selector below."></div><div id="empty-chart" class="chart-empty"><span class="empty-number">01</span><strong>Your envelope is ready.</strong><p>Run the simulation to trace its centrograms.</p></div></div>
+        <div class="chart-caption"><span id="curve-count">Envelope preview · no simulation run</span><span>Solid: through individual cap <span class="dash-example"></span> Dashed: beyond cap</span></div>
+        <div class="details-heading"><h2>Loading details</h2><label class="sr-only" for="loading">Select a loading</label><select id="loading" disabled><option>Run a simulation first</option></select></div>
+        <div id="details" class="details-empty">Hover to inspect a curve. Click to pin its loading, or choose it from the list.</div>
+        <div id="timings" class="timings" aria-label="Simulation timings"><div><span>Solver</span><strong>—</strong></div><div><span>Centrograms</span><strong>—</strong></div><div><span>API total</span><strong>—</strong></div><div><span>Browser request</span><strong>—</strong></div></div>
+        <div class="run-footer"><span id="stats">Results are calculated by the REST API.</span><span id="request-id"></span></div>
+      </section>
+    </div>
+  </main>
+  <footer class="safety"><strong>Educational demonstration.</strong> Not approved for aircraft loading, dispatch, or flight operations.</footer>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="edit-form">
+      <div class="dialog-heading"><div><p class="eyebrow">Scenario inputs</p><h2 id="editor-title"></h2></div><button type="button" id="close-editor" aria-label="Close editor">Close</button></div>
+      <p id="editor-help" class="muted"></p>
+      <div id="editor-error" class="message" role="alert" hidden></div>
+      <div id="editor-content" class="table-scroll"></div>
+      <div class="dialog-actions"><button id="add-row" type="button">Add row</button><span class="muted">Changes apply when saved.</span><button id="cancel-editor" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <dialog id="replace-dialog" aria-labelledby="replace-title">
+    <form method="dialog">
+      <h2 id="replace-title">Replace this scenario?</h2>
+      <p class="muted">Unsaved changes will be lost. Cancel and export JSON to keep a copy.</p>
+      <div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="replace" class="primary">Replace scenario</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
